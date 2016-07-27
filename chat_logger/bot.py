@@ -58,7 +58,7 @@ class Bot(threading.Thread):
                 if len(messageParts) != 2:
                     continue
                 keyvalue[1] = messageParts[0]
-                message['message'] = messageParts[1]
+                message['message'] = messageParts[1].strip()
 
             message[keyvalue[0]] = keyvalue[1]
 
