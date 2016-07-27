@@ -1,4 +1,4 @@
-from pymongo import MongoClient
+import pymongo
 
 class Storage:
 
@@ -7,10 +7,17 @@ class Storage:
     """
     def __init__(self, chat_logger):
         self.chat_logger = chat_logger
-        self.client = MongoClient(host=self.chat_logger.args.host, port=self.chat_logger.args.port)
+        self.client = pymongo.MongoClient(host=self.chat_logger.args.host, port=self.chat_logger.args.port)
 
         self.db = self.client.twitch_db
         self.collection = self.db.logs
+
+        self.collection.create_index([("display-name", pymongo.ASCENDING)])
+        self.collection.create_index([("datetime", pymongo.DESCENDING)])
+        self.collection.create_index([
+            ("display-name", pymongo.ASCENDING),
+            ("datetime", pymongo.DESCENDING)
+        ])
 
     def store(self, data):
         if not data:
