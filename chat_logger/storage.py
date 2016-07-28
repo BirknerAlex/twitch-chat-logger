@@ -1,4 +1,6 @@
 import pymongo
+from bson import json_util
+import json
 
 class Storage:
 
@@ -25,3 +27,7 @@ class Storage:
 
         self.chat_logger.logger.info(data)
         self.collection.insert(data)
+        data['date'] = data['datetime'].strftime("%d.%m.%Y %H:%M:%S")
+        json_data = json.dumps(data, default=json_util.default)
+        for queue in self.chat_logger.queues:
+            queue.put(json_data)

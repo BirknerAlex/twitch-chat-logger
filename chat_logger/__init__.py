@@ -1,8 +1,8 @@
 import logging
-import asyncio
 import sys
 
 from chat_logger.bot import Bot
+from chat_logger.websocket_server import WebsocketServer
 
 
 class TwitchChatLogger:
@@ -19,13 +19,16 @@ class TwitchChatLogger:
             format="%(levelname)s - %(name)s -> %(message)s",
             level=logging.INFO)
 
-        self.queue = asyncio.Queue()
+        self.queues = []
         self.running = True
         self.args = args
         self.logger = logging.getLogger("Twitch Chat Logger")
 
     def start(self):
         self.logger.info("Starting Up")
+
+        self.websocket = WebsocketServer(self)
+        self.websocket.start()
 
         self.bot = Bot(self)
         self.bot.start()

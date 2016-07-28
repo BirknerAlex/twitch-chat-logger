@@ -3,6 +3,7 @@ import threading
 import asyncio
 import websockets.client
 import datetime
+import re
 
 from chat_logger.storage import Storage
 
@@ -48,6 +49,7 @@ class Bot(threading.Thread):
         if len(parts) <= 1:
             return
 
+        message['me'] = False
         for part in parts:
             keyvalue = part.split("=")
             if len(keyvalue) != 2:
@@ -60,6 +62,10 @@ class Bot(threading.Thread):
                 keyvalue[1] = messageParts[0]
                 message['message'] = messageParts[1].strip()
 
+                if re.match("(^\x01ACTION)", message['message']):
+                    message['me'] = True
+                    message['message'] = re.sub("^\x01ACTION", '', message['message']).strip()
+
             message[keyvalue[0]] = keyvalue[1]
 
         if 'message' not in message:
@@ -67,6 +73,7 @@ class Bot(threading.Thread):
 
         message['datetime'] = datetime.datetime.now()
         message['mod'] = int(message['mod']) == 1
+        message['broadcaster'] = message['display-name'] == self.chat_logger.args.channel
         message['turbo'] = int(message['turbo']) == 1
         message['subscriber'] = int(message['subscriber']) == 1
 
