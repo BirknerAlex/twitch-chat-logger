@@ -33,6 +33,6 @@ class WebsocketServer(threading.Thread):
                 data = queue.get(block=True)
                 yield from websocket.send(str(data))
                 queue.task_done()
-            except websockets.ConnectionClosed:
-                self.chat_logger.queues.delete(queue)
+            except websockets.exceptions.ConnectionClosed:
                 running = False
+                self.chat_logger.queues.remove(queue)
