@@ -4,6 +4,7 @@ import asyncio
 import websockets.client
 import datetime
 import re
+import sys
 
 from chat_logger.storage import Storage
 
@@ -38,7 +39,9 @@ class Bot(threading.Thread):
             while self.chat_logger.running:
                 data = yield from websocket.recv()
                 self.storage.store(data=self.parse_message(data))
-
+        except websockets.exceptions.ConnectionClosed:
+            self.chat_logger.logger.error("Connection from Twitch closed - exiting")
+            sys.exit(1)
         finally:
             yield from websocket.close()
 

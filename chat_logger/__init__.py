@@ -33,7 +33,6 @@ class TwitchChatLogger:
         self.bot = Bot(self)
         self.bot.start()
 
-
     def stop(self):
         self.logger("Shutting down")
         self.running = False

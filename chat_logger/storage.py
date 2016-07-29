@@ -25,9 +25,9 @@ class Storage:
         if not data:
             return
 
-        self.chat_logger.logger.info(data)
+        self.chat_logger.logger.debug(data)
         self.collection.insert(data)
         data['date'] = data['datetime'].strftime("%d.%m.%Y %H:%M:%S")
         json_data = json.dumps(data, default=json_util.default)
-        for queue in self.chat_logger.queues:
-            queue.put(json_data)
+        for queue in self.chat_logger.websocket.queues:
+            self.chat_logger.websocket.loop.call_soon_threadsafe(queue.put_nowait, json_data)
