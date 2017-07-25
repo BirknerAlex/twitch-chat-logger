@@ -37,47 +37,61 @@ class Bot(threading.Thread):
             yield from websocket.send("JOIN #{channel}".format(channel=self.chat_logger.args.channel))
 
             while self.chat_logger.running:
-                data = yield from websocket.recv()
-                self.storage.store(data=self.parse_message(data))
+                content = yield from websocket.recv()
+                data = self.parse_message(content)
+                if data:
+                    self.storage.store(data=data, collection=data['collection'])
         except websockets.exceptions.ConnectionClosed:
             self.chat_logger.logger.error("Connection from Twitch closed - exiting")
             sys.exit(1)
         finally:
             yield from websocket.close()
 
-    def parse_message(self, message):
-        parts = message.split(";")
+    def parse_message(self, streamed_message):
+        parts = streamed_message.split(";")
         message = {}
 
         if len(parts) <= 1:
             return
 
-        message['me'] = False
         for part in parts:
             keyvalue = part.split("=")
             if len(keyvalue) != 2:
                 continue
 
-            if keyvalue[0] == 'user-type':
-                messageParts = part.split("PRIVMSG #"+ self.chat_logger.args.channel +" :")
-                if len(messageParts) != 2:
-                    continue
-                keyvalue[1] = messageParts[0]
-                message['message'] = messageParts[1].strip()
+            message[keyvalue[0].replace('@', '')] = keyvalue[1]
 
-                if re.match("(^\x01ACTION)", message['message']):
-                    message['me'] = True
-                    message['message'] = re.sub("^\x01ACTION", '', message['message']).strip()
+        # Chat messages
+        if "PRIVMSG" in streamed_message:
+            message['collection'] = 'chat'
 
-            message[keyvalue[0]] = keyvalue[1]
+            matches = re.match(".*PRIVMSG #"+ self.chat_logger.args.channel +" :(.*)\r\n$", message['user-type'])
+            if matches:
+                message['message'] = matches[1]
 
-        if 'message' not in message:
-            return
+            if 'message' not in message:
+                self.chat_logger.logger.error("Chat message received without message body.")
+                return
 
-        message['datetime'] = datetime.datetime.now()
-        message['mod'] = int(message['mod']) == 1
-        message['broadcaster'] = message['display-name'] == self.chat_logger.args.channel
-        message['turbo'] = int(message['turbo']) == 1
-        message['subscriber'] = int(message['subscriber']) == 1
+            message['datetime'] = datetime.datetime.now()
+            message['mod'] = int(message['mod']) == 1
+            message['broadcaster'] = message['display-name'] == self.chat_logger.args.channel
+            message['turbo'] = int(message['turbo']) == 1
+            message['subscriber'] = int(message['subscriber']) == 1
+            del message['user-id']
 
-        return message
+        # Ban messages
+        elif 'ban-reason' in streamed_message:
+
+            matches = re.match(".*CLEARCHAT #"+ self.chat_logger.args.channel +" :(.*)\r\n$", message['target-user-id'])
+            print(message)
+            if matches:
+                message['collection'] = 'mod_log'
+                message['ban-duration'] = int(message['ban-duration'])
+                message['target'] = matches[1]
+
+            del message['target-user-id']
+
+        if 'collection' in message:
+            del message['room-id']
+            return message
